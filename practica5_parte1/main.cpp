@@ -1,18 +1,21 @@
-﻿#include <QApplication>
-#include <QGraphicsScene>
-#include <QGraphicsView>
-#include <QGraphicsEllipseItem>
+﻿#include "Simulador.h"
+#include <iostream>
 
-int main(int argc, char *argv[])
-{
-    QApplication a(argc, argv);
+int main() {
+    std::cout << "=== PRUEBA DE LOGICA ===" << std::endl;
 
-    QGraphicsScene * scene = new QGraphicsScene();
-    QGraphicsEllipseItem * particula = new QGraphicsEllipseItem();
-    particula->setRect(0, 0, 50, 50);
-    scene->addItem(particula);
-    QGraphicsView * view = new QGraphicsView(scene);
-    view->show();
+    Simulador sim(800, 600, 0.01);
+    sim.agregarParticula(100, 100, 150, 120, 1.0);
+    sim.agregarParticula(700, 100, -180, 140, 1.5);
 
-    return a.exec();
+    // Simular 100 pasos
+    for(int i = 0; i < 100; i++) {
+        sim.simularPaso();
+    }
+
+    std::cout << "Particulas activas: " << sim.getNumParticulasActivas() << std::endl;
+    std::cout << "Colisiones: " << sim.getEventosColision().size() << std::endl;
+    std::cout << "Prueba exitosa!" << std::endl;
+
+    return 0;
 }
