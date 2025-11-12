@@ -10,10 +10,56 @@ CONFIG += c++17
 
 SOURCES += \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    particula.cpp \
+    simulador.cpp
 
 HEADERS += \
-    mainwindow.h
+    mainwindow.h \
+    particula.h \
+    simulador.h
+
+FORMS += \
+    mainwindow.ui
+
+# Default rules for deployment.
+qnx: target.path = /tmp/$${TARGET}/bin
+else: unix:!android: target.path = /opt/$${TARGET}/bin
+!isEmpty(target.path): INSTALLS += target
+
+
+HEADERS += \
+    mainwindow.h \
+    particula.h \
+    simulador.h
+
+FORMS += \
+    mainwindow.ui
+
+# Default rules for deployment.
+qnx: target.path = /tmp/$${TARGET}/bin
+else: unix:!android: target.path = /opt/$${TARGET}/bin
+!isEmpty(target.path): INSTALLS += target
+
+
+HEADERS += \
+    mainwindow.h \
+    particula.h \
+    simulador.h
+
+FORMS += \
+    mainwindow.ui
+
+# Default rules for deployment.
+qnx: target.path = /tmp/$${TARGET}/bin
+else: unix:!android: target.path = /opt/$${TARGET}/bin
+!isEmpty(target.path): INSTALLS += target
+
+
+HEADERS += \
+    mainwindow.h \
+    particula.h \
+    simulador.h
 
 FORMS += \
     mainwindow.ui
