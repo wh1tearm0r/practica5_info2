@@ -13,10 +13,8 @@ private:
     int id;
 
 public:
-    // Constructor
     Particula(double x0, double y0, double vx0, double vy0, double m, int identificador);
 
-    // Getters
     double getX() const { return x; }
     double getY() const { return y; }
     double getVx() const { return vx; }
@@ -26,7 +24,6 @@ public:
     bool estaActiva() const { return activa; }
     int getId() const { return id; }
 
-    // Setters
     void setVx(double v) { vx = v; }
     void setVy(double v) { vy = v; }
     void setMasa(double m) { masa = m; }
