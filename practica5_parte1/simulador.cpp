@@ -102,8 +102,6 @@ void Simulador::detectarColisionesParedes() {
         }
     }
 }
-
-// Detectar colisiones entre partículas
 void Simulador::detectarColisionesParticulas() {
     for (size_t i = 0; i < particulas.size(); i++) {
         if (!particulas[i]->estaActiva()) continue;
@@ -112,7 +110,6 @@ void Simulador::detectarColisionesParticulas() {
             if (!particulas[j]->estaActiva()) continue;
 
             if (particulas[i]->colisionaCon(*particulas[j])) {
-                // Registrar evento
                 EventoColision evento;
                 evento.tiempo = tiempoActual;
                 evento.tipo = "fusion_particulas";
@@ -125,8 +122,6 @@ void Simulador::detectarColisionesParticulas() {
                     << particulas[i]->getMasa() + particulas[j]->getMasa() << ")";
                 evento.detalles = oss.str();
                 eventosColision.push_back(evento);
-
-                // Fusionar partículas (completamente inelástica)
                 particulas[i]->fusionarCon(*particulas[j]);
             }
         }
