@@ -1,0 +1,34 @@
+#ifndef OBSTACULO_H
+#define OBSTACULO_H
+
+class Particula; // Forward declaration
+
+class Obstaculo {
+private:
+    double x, y;        // Esquina superior izquierda
+    double ancho, alto; // Dimensiones del cuadrado/rectángulo
+    double coefRestitucion; // Coeficiente e (0 < e < 1)
+
+public:
+    // Constructor
+    Obstaculo(double x0, double y0, double w, double h, double e = 0.7);
+
+    // Getters
+    double getX() const { return x; }
+    double getY() const { return y; }
+    double getAncho() const { return ancho; }
+    double getAlto() const { return alto; }
+    double getCoefRestitucion() const { return coefRestitucion; }
+    bool colisionaCon(const Particula& p) const;
+
+    // Aplicar rebote inelástico a una partícula
+    // Devuelve true si hubo colisión
+    bool aplicarRebote(Particula& p) const;
+
+private:
+    // Métodos auxiliares para determinar el lado de colisión
+    enum Lado { NINGUNO, IZQUIERDO, DERECHO, SUPERIOR, INFERIOR };
+    Lado determinarLadoColision(const Particula& p) const;
+};
+
+#endif // OBSTACULO_H
