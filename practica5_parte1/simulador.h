@@ -2,6 +2,7 @@
 #define SIMULADOR_H
 
 #include "Particula.h"
+#include "obstaculo.h"
 #include <vector>
 #include <string>
 
@@ -16,6 +17,7 @@ struct EventoColision {
 class Simulador {
 private:
     std::vector<Particula*> particulas;
+    std::vector<Obstaculo*> obstaculos;
     std::vector<EventoColision> eventosColision;
 
     double anchoBox;
@@ -30,10 +32,13 @@ public:
     ~Simulador();
 
     void agregarParticula(double x, double y, double vx, double vy, double masa);
+    void agregarObstaculo(double x, double y, double ancho, double alto, double coefRestitucion = 0.7);
     void simularPaso();
     void detectarColisionesParedes();
     void detectarColisionesParticulas();
+    void detectarColisionesObstaculos();
     const std::vector<Particula*>& getParticulas() const { return particulas; }
+    const std::vector<Obstaculo*>& getObstaculos() const { return obstaculos; }
     const std::vector<EventoColision>& getEventosColision() const { return eventosColision; }
     double getTiempoActual() const { return tiempoActual; }
     double getAnchoBox() const { return anchoBox; }

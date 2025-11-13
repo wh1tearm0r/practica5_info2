@@ -14,7 +14,6 @@ private:
 
 public:
     Particula(double x0, double y0, double vx0, double vy0, double m, int identificador);
-
     double getX() const { return x; }
     double getY() const { return y; }
     double getVx() const { return vx; }

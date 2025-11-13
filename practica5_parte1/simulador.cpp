@@ -10,10 +10,18 @@ Simulador::~Simulador() {
         delete p;
     }
     particulas.clear();
+    for (auto o : obstaculos) {
+        delete o;
+    }
+    obstaculos.clear();
 }
 void Simulador::agregarParticula(double x, double y, double vx, double vy, double masa) {
     Particula* nueva = new Particula(x, y, vx, vy, masa, contadorParticulas++);
     particulas.push_back(nueva);
+}
+void Simulador::agregarObstaculo(double x, double y, double ancho, double alto, double coefRestitucion) {
+    Obstaculo* nuevo = new Obstaculo(x, y, ancho, alto, coefRestitucion);
+    obstaculos.push_back(nuevo);
 }
 void Simulador::simularPaso() {
     for (auto p : particulas) {
@@ -22,6 +30,7 @@ void Simulador::simularPaso() {
         }
     }
     detectarColisionesParedes();
+    detectarColisionesObstaculos();
     detectarColisionesParticulas();
     tiempoActual += dt;
 }
@@ -93,8 +102,6 @@ void Simulador::detectarColisionesParedes() {
         }
     }
 }
-
-// Detectar colisiones entre partículas
 void Simulador::detectarColisionesParticulas() {
     for (size_t i = 0; i < particulas.size(); i++) {
         if (!particulas[i]->estaActiva()) continue;
@@ -103,7 +110,6 @@ void Simulador::detectarColisionesParticulas() {
             if (!particulas[j]->estaActiva()) continue;
 
             if (particulas[i]->colisionaCon(*particulas[j])) {
-                // Registrar evento
                 EventoColision evento;
                 evento.tiempo = tiempoActual;
                 evento.tipo = "fusion_particulas";
@@ -116,14 +122,33 @@ void Simulador::detectarColisionesParticulas() {
                     << particulas[i]->getMasa() + particulas[j]->getMasa() << ")";
                 evento.detalles = oss.str();
                 eventosColision.push_back(evento);
-
-                // Fusionar partículas (completamente inelástica)
                 particulas[i]->fusionarCon(*particulas[j]);
             }
         }
     }
 }
+void Simulador::detectarColisionesObstaculos() {
+    for (auto p : particulas) {
+        if (!p->estaActiva()) continue;
 
+        for (size_t i = 0; i < obstaculos.size(); i++) {
+            if (obstaculos[i]->aplicarRebote(*p)) {
+                // Registrar evento
+                EventoColision evento;
+                evento.tiempo = tiempoActual;
+                evento.tipo = "obstaculo";
+                evento.id1 = p->getId();
+                evento.id2 = i; // Usar índice del obstáculo
+                std::ostringstream oss;
+                oss << "Particula " << p->getId()
+                    << " rebotó en obstáculo " << i
+                    << " (coef. restitución: " << obstaculos[i]->getCoefRestitucion() << ")";
+                evento.detalles = oss.str();
+                eventosColision.push_back(evento);
+            }
+        }
+    }
+}
 // Contar partículas activas
 int Simulador::getNumParticulasActivas() const {
     int count = 0;
@@ -139,6 +164,10 @@ void Simulador::reset() {
         delete p;
     }
     particulas.clear();
+    for (auto o : obstaculos) {
+        delete o;
+    }
+    obstaculos.clear();
     eventosColision.clear();
     tiempoActual = 0.0;
     contadorParticulas = 0;
