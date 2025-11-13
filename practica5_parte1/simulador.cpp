@@ -24,7 +24,26 @@ void Simulador::agregarObstaculo(double x, double y, double ancho, double alto, 
     Obstaculo* nuevo = new Obstaculo(x, y, ancho, alto, coefRestitucion);
     obstaculos.push_back(nuevo);
 }
+
+void Simulador::guardarEstadoActual() {
+    for (auto p : particulas) {
+        EstadoParticula estado;
+        estado.tiempo = tiempoActual;
+        estado.id = p->getId();
+        estado.x = p->getX();
+        estado.y = p->getY();
+        estado.vx = p->getVx();
+        estado.vy = p->getVy();
+        estado.masa = p->getMasa();
+        estado.activa = p->estaActiva();
+
+        historialEstados.push_back(estado);
+    }
+}
+
 void Simulador::simularPaso() {
+    guardarEstadoActual();
+
     for (auto p : particulas) {
         if (p->estaActiva()) {
             p->actualizarPosicion(dt);
@@ -179,6 +198,7 @@ void Simulador::reset() {
     }
     obstaculos.clear();
     eventosColision.clear();
+    historialEstados.clear();
     tiempoActual = 0.0;
     contadorParticulas = 0;
 }
@@ -209,6 +229,22 @@ void Simulador::exportarSimulacion(const std::string& nombreArchivo) const {
                 << obstaculos[i]->getY() << ","
                 << obstaculos[i]->getAncho() << ","
                 << obstaculos[i]->getAlto() << "\n";
+    }
+    archivo << "#\n";
+
+    //Historial completo de particulas
+    archivo << "# TRAYECTORIAS DE PARTICULAS\n";
+    archivo << "# Formato: trayectoria,tiempo,id,x,y,vx,vy,masa,activa\n";
+    for (const auto& estado : historialEstados) {
+        archivo << "trayectoria,"
+                << estado.tiempo << ","
+                << estado.id << ","
+                << estado.x << ","
+                << estado.y << ","
+                << estado.vx << ","
+                << estado.vy << ","
+                << estado.masa << ","
+                << (estado.activa ? 1 : 0) << "\n";
     }
     archivo << "#\n";
 

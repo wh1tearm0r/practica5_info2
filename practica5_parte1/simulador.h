@@ -14,11 +14,23 @@ struct EventoColision {
     std::string detalles;
 };
 
+struct EstadoParticula {
+    double tiempo;
+    int id;
+    double x;
+    double y;
+    double vx;
+    double vy;
+    double masa;
+    bool activa;
+};
+
 class Simulador {
 private:
     std::vector<Particula*> particulas;
     std::vector<Obstaculo*> obstaculos;
     std::vector<EventoColision> eventosColision;
+    std::vector<EstadoParticula> historialEstados;
 
     double anchoBox;
     double altoBox;
@@ -37,9 +49,11 @@ public:
     void detectarColisionesParedes();
     void detectarColisionesParticulas();
     void detectarColisionesObstaculos();
+    void guardarEstadoActual();
     const std::vector<Particula*>& getParticulas() const { return particulas; }
     const std::vector<Obstaculo*>& getObstaculos() const { return obstaculos; }
     const std::vector<EventoColision>& getEventosColision() const { return eventosColision; }
+    const std::vector<EstadoParticula>& getHistorialEstados() const { return historialEstados; }
     double getTiempoActual() const { return tiempoActual; }
     double getAnchoBox() const { return anchoBox; }
     double getAltoBox() const { return altoBox; }

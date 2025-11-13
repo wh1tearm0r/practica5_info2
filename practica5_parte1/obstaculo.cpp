@@ -1,4 +1,4 @@
-#include "Obstaculo.h"
+﻿#include "Obstaculo.h"
 #include "Particula.h"
 #include <cmath>
 #include <algorithm>
@@ -47,8 +47,8 @@ bool Obstaculo::aplicarRebote(Particula& p) const {
 
     double vx = p.getVx();
     double vy = p.getVy();
-    double px = p.getX();
-    double py = p.getY();
+    //double px = p.getX();
+    //double py = p.getY();
     double radio = p.getRadio();
 
     switch(lado) {

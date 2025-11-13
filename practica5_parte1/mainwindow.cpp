@@ -227,6 +227,9 @@ void MainWindow::configurarEscena()
     simulador->agregarParticula(100, 500, 160, -130, 1.2);
     simulador->agregarParticula(700, 500, -170, -110, 0.8);
 
+    //Guardar estado inicial
+    simulador->guardarEstadoActual();
+
     // Dibujar elementos
     dibujarObstaculos();
     crearParticulas();
@@ -237,7 +240,7 @@ void MainWindow::configurarEscena()
     textoEstadisticas->setFont(fuente);
     textoEstadisticas->setPos(10, 10);
     textoEstadisticas->setDefaultTextColor(Qt::black);
-    textoEstadisticas->setZValue(100); // Encima de todo
+    textoEstadisticas->setZValue(100);
 
     actualizarEstadisticas();
     pasoActual = 0;
@@ -422,6 +425,17 @@ void MainWindow::exportarDatos()
         return;
     }
 
+    //Verificar que haya datos para exportar
+    if (simulador->getHistorialEstados().empty()) {
+        QMessageBox::warning(
+            this,
+            " Sin datos",
+            "No hay trayectorias para exportar.\n\n"
+            "Debes ejecutar la simulacion primero haciendo clic en 'Iniciar'."
+            );
+        return;
+    }
+
     QString nombreArchivo = QFileDialog::getSaveFileName(
         this,
         "Guardar resultados",
@@ -439,7 +453,12 @@ void MainWindow::exportarDatos()
     QMessageBox::information(
         this,
         " Exportacion exitosa",
-        "Datos guardados en:\n" + nombreArchivo
+        QString("Datos guardados en:\n%1\n\n"
+                " Trayectorias: %2 estados\n"
+                " Colisiones: %3 eventos")
+            .arg(nombreArchivo)
+            .arg(simulador->getHistorialEstados().size())
+            .arg(simulador->getEventosColision().size())
         );
 
     if (ui && ui->statusbar) {
@@ -577,6 +596,9 @@ void MainWindow::cargarEscenario(int numero)
         simulador->agregarParticula(700, 500, -170, -110, 0.8);
         break;
     }
+
+    //Guardar estado inicial del escenario
+    simulador->guardarEstadoActual();
 
     // Redibujar
     dibujarObstaculos();
