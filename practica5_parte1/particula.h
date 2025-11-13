@@ -23,6 +23,8 @@ public:
     bool estaActiva() const { return activa; }
     int getId() const { return id; }
 
+    void setX(double newX) { x = newX; }
+    void setY(double newY) { y = newY; }
     void setVx(double v) { vx = v; }
     void setVy(double v) { vy = v; }
     void setMasa(double m) { masa = m; }

@@ -1,20 +1,16 @@
-﻿#include "Simulador.h"
-#include <iostream>
+﻿#include "mainwindow.h"
+#include <QApplication>
 
-int main() {
-    std::cout << "=== PRUEBA ===" << std::endl;
+int main(int argc, char *argv[])
+{
+    QApplication app(argc, argv);
 
-    Simulador sim(800, 600, 0.01);
-    sim.agregarParticula(100, 100, 150, 120, 1.0);
-    sim.agregarParticula(700, 100, -180, 140, 1.5);
+    // Configurar estilo de la aplicacion
+    app.setStyle("Fusion");
 
-    for(int i = 0; i < 100; i++) {
-        sim.simularPaso();
-    }
+    // Crear y mostrar ventana principal
+    MainWindow ventana;
+    ventana.show();
 
-    std::cout << "Particulas activas: " << sim.getNumParticulasActivas() << std::endl;
-    std::cout << "Colisiones: " << sim.getEventosColision().size() << std::endl;
-    std::cout << "Prueba exitosa!" << std::endl;
-
-    return 0;
+    return app.exec();
 }
