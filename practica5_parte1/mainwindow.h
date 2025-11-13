@@ -6,9 +6,13 @@
 #include <QGraphicsView>
 #include <QGraphicsEllipseItem>
 #include <QGraphicsRectItem>
+#include <QGraphicsTextItem>
 #include <QTimer>
 #include <QPushButton>
 #include <QLabel>
+#include <QTextEdit>
+#include <QScrollBar>
+#include <QFrame>
 #include <vector>
 #include "simulador.h"
 
@@ -60,6 +64,11 @@ private:
     QPushButton *btnReset;
     QPushButton *btnExportar;
 
+    // Panel de colisiones
+    QLabel *labelUltimaColision;
+    QTextEdit *textHistorialColisiones;
+    int ultimaColisionMostrada;
+
     // Metodos auxiliares
     void configurarInterfaz();
     void configurarEscena();
@@ -68,6 +77,8 @@ private:
     void actualizarVisualizacion();
     void actualizarEstadisticas();
     void limpiarEscena();
+    void mostrarNuevasColisiones();
+    void cargarEscenario(int numero);
 };
 
 #endif // MAINWINDOW_H

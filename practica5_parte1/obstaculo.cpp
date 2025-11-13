@@ -18,12 +18,11 @@ bool Obstaculo::colisionaCon(const Particula& p) const {
     double dx = px - puntoMasCercanoX;
     double dy = py - puntoMasCercanoY;
     double distancia = sqrt(dx*dx + dy*dy);
-    return distancia <= radio;
+    return distancia < radio;
 }
 Obstaculo::Lado Obstaculo::determinarLadoColision(const Particula& p) const {
     double px = p.getX();
     double py = p.getY();
-    double radio = p.getRadio();
 
     double distIzq = std::abs(px - x);
     double distDer = std::abs(px - (x + ancho));
@@ -31,10 +30,10 @@ Obstaculo::Lado Obstaculo::determinarLadoColision(const Particula& p) const {
     double distInf = std::abs(py - (y + alto));
     double minDist = std::min({distIzq, distDer, distSup, distInf});
 
-    if (minDist == distIzq && px < x) return IZQUIERDO;
-    if (minDist == distDer && px > x + ancho) return DERECHO;
-    if (minDist == distSup && py < y) return SUPERIOR;
-    if (minDist == distInf && py > y + alto) return INFERIOR;
+    if (minDist == distIzq && px < x + ancho/2) return IZQUIERDO;
+    if (minDist == distDer && px > x + ancho/2) return DERECHO;
+    if (minDist == distSup && py < y + alto/2) return SUPERIOR;
+    if (minDist == distInf && py > y + alto/2) return INFERIOR;
 
     return NINGUNO;
 }
@@ -44,19 +43,31 @@ bool Obstaculo::aplicarRebote(Particula& p) const {
 
     Lado lado = determinarLadoColision(p);
 
+    if (lado == NINGUNO) return false;
+
     double vx = p.getVx();
     double vy = p.getVy();
+    double px = p.getX();
+    double py = p.getY();
+    double radio = p.getRadio();
 
     switch(lado) {
     case IZQUIERDO:
+        p.setX(x - radio - 1.0);  // -1.0 para buffer
+        p.setVx(-coefRestitucion * std::abs(vx));  // Rebotar hacia la izquierda
+        break;
     case DERECHO:
-        p.setVx(-coefRestitucion * vx);
+        p.setX(x + ancho + radio + 1.0);  // +1.0 para buffer
+        p.setVx(coefRestitucion * std::abs(vx));  // Rebotar hacia la derecha
         break;
 
     case SUPERIOR:
+        p.setY(y - radio - 1.0);  // -1.0 para buffer
+        p.setVy(-coefRestitucion * std::abs(vy));  // Rebotar hacia arriba
+        break;
     case INFERIOR:
-
-        p.setVy(-coefRestitucion * vy);
+        p.setY(y + alto + radio + 1.0);  // +1.0 para buffer
+        p.setVy(coefRestitucion * std::abs(vy));  // Rebotar hacia abajo
         break;
 
     case NINGUNO:

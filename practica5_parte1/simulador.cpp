@@ -43,9 +43,12 @@ void Simulador::detectarColisionesParedes() {
         double x = p->getX();
         double y = p->getY();
         double r = p->getRadio();
+        bool colisionDetectada = false;
 
         if (x - r <= 0) {
+            p->setX(r + 0.5);
             p->rebotarParedVertical();
+            colisionDetectada = true;
 
             EventoColision evento;
             evento.tiempo = tiempoActual;
@@ -53,13 +56,15 @@ void Simulador::detectarColisionesParedes() {
             evento.id1 = p->getId();
             evento.id2 = -1;
             std::ostringstream oss;
-            oss << "Particula " << p->getId() << " rebotó en pared izquierda";
+            oss << "Particula " << p->getId() << " reboto en pared izquierda";
             evento.detalles = oss.str();
             eventosColision.push_back(evento);
         }
 
         if (x + r >= anchoBox) {
+            p->setX(anchoBox - r - 0.5);
             p->rebotarParedVertical();
+            colisionDetectada = true;
 
             EventoColision evento;
             evento.tiempo = tiempoActual;
@@ -67,14 +72,16 @@ void Simulador::detectarColisionesParedes() {
             evento.id1 = p->getId();
             evento.id2 = -1;
             std::ostringstream oss;
-            oss << "Particula " << p->getId() << " rebotó en pared derecha";
+            oss << "Particula " << p->getId() << " reboto en pared derecha";
             evento.detalles = oss.str();
             eventosColision.push_back(evento);
         }
 
         // Pared superior
         if (y - r <= 0) {
+            p->setY(r + 0.5);
             p->rebotarParedHorizontal();
+            colisionDetectada = true;
 
             EventoColision evento;
             evento.tiempo = tiempoActual;
@@ -82,14 +89,16 @@ void Simulador::detectarColisionesParedes() {
             evento.id1 = p->getId();
             evento.id2 = -1;
             std::ostringstream oss;
-            oss << "Particula " << p->getId() << " rebotó en pared superior";
+            oss << "Particula " << p->getId() << " reboto en pared superior";
             evento.detalles = oss.str();
             eventosColision.push_back(evento);
         }
 
         // Pared inferior
         if (y + r >= altoBox) {
+            p->setY(altoBox - r - 0.5);
             p->rebotarParedHorizontal();
+            colisionDetectada = true;
 
             EventoColision evento;
             evento.tiempo = tiempoActual;
@@ -97,7 +106,7 @@ void Simulador::detectarColisionesParedes() {
             evento.id1 = p->getId();
             evento.id2 = -1;
             std::ostringstream oss;
-            oss << "Particula " << p->getId() << " rebotó en pared inferior";
+            oss << "Particula " << p->getId() << " reboto en pared inferior";
             evento.detalles = oss.str();
             eventosColision.push_back(evento);
         }
@@ -182,64 +191,45 @@ void Simulador::exportarSimulacion(const std::string& nombreArchivo) const {
         return;
     }
 
-    // ==========================================
-    // SECCION 1: INFORMACION GENERAL
-    // ==========================================
+    // Informaciin general
     archivo << "# SIMULACION DE COLISIONES MULTIPLES\n";
-    archivo << "# Practica 5 - Informatica II - Universidad de Antioquia\n";
+    archivo << "# Practica 5 - Informatica II\n";
     archivo << "#\n";
     archivo << "# Box: " << anchoBox << " x " << altoBox << "\n";
-    archivo << "# Tiempo simulado: " << tiempoActual << " segundos\n";
-    archivo << "# Delta tiempo (dt): " << dt << " segundos\n";
+    archivo << "# Tiempo: " << tiempoActual << " s\n";
     archivo << "# Particulas activas: " << getNumParticulasActivas() << "/" << particulas.size() << "\n";
     archivo << "# Total colisiones: " << eventosColision.size() << "\n";
     archivo << "#\n";
 
-    // ==========================================
-    // SECCION 2: OBSTACULOS
-    // ==========================================
+    // Obstáculos
     archivo << "# OBSTACULOS\n";
-    archivo << "# Formato: obstaculo,id,x,y,ancho,alto,coef_restitucion\n";
     for (size_t i = 0; i < obstaculos.size(); i++) {
         archivo << "obstaculo," << i << ","
                 << obstaculos[i]->getX() << ","
                 << obstaculos[i]->getY() << ","
                 << obstaculos[i]->getAncho() << ","
-                << obstaculos[i]->getAlto() << ","
-                << obstaculos[i]->getCoefRestitucion() << "\n";
+                << obstaculos[i]->getAlto() << "\n";
     }
     archivo << "#\n";
 
-    // ==========================================
-    // SECCION 3: ESTADO FINAL DE PARTICULAS
-    // ==========================================
-    archivo << "# PARTICULAS_FINALES\n";
-    archivo << "# Formato: particula,id,x,y,vx,vy,masa,radio,activa\n";
+    // Partículas
+    archivo << "# PARTICULAS\n";
     for (const auto& p : particulas) {
         archivo << "particula," << p->getId() << ","
-                << p->getX() << ","
-                << p->getY() << ","
-                << p->getVx() << ","
-                << p->getVy() << ","
-                << p->getMasa() << ","
-                << p->getRadio() << ","
+                << p->getX() << "," << p->getY() << ","
+                << p->getMasa() << "," << p->getRadio() << ","
                 << (p->estaActiva() ? 1 : 0) << "\n";
     }
     archivo << "#\n";
 
-    // ==========================================
-    // SECCION 4: COLISIONES
-    // ==========================================
+    // Colisiones
     archivo << "# COLISIONES\n";
-    archivo << "# Formato: colision,tiempo,tipo,id1,id2,detalles\n";
     for (const auto& evento : eventosColision) {
         archivo << "colision," << evento.tiempo << ","
-                << evento.tipo << ","
-                << evento.id1 << ","
-                << evento.id2 << ","
-                << evento.detalles << "\n";
+                << evento.tipo << "," << evento.id1 << ","
+                << evento.id2 << "\n";
     }
 
     archivo.close();
-    std::cout << " Simulacion exportada a: " << nombreArchivo << std::endl;
+    std::cout << " Datos exportados a: " << nombreArchivo << std::endl;
 }
