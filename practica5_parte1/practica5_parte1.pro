@@ -70,3 +70,8 @@ FORMS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+DISTFILES += \
+    graficar_colisiones.py \
+    graficar_energia.py \
+    graficar_simulacion.py

@@ -45,6 +45,7 @@ public:
     double getAltoBox() const { return altoBox; }
     int getNumParticulasActivas() const;
     void reset();
+    void exportarSimulacion(const std::string& nombreArchivo) const;
 };
 
 #endif // SIMULADOR_H

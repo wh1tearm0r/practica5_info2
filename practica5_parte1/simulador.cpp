@@ -1,6 +1,7 @@
 #include "Simulador.h"
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 Simulador::Simulador(double ancho, double alto, double deltaTiempo)
     : anchoBox(ancho), altoBox(alto), tiempoActual(0.0), dt(deltaTiempo), contadorParticulas(0) {
@@ -171,4 +172,74 @@ void Simulador::reset() {
     eventosColision.clear();
     tiempoActual = 0.0;
     contadorParticulas = 0;
+}
+
+void Simulador::exportarSimulacion(const std::string& nombreArchivo) const {
+    std::ofstream archivo(nombreArchivo);
+
+    if (!archivo.is_open()) {
+        std::cerr << "Error: No se pudo abrir el archivo " << nombreArchivo << std::endl;
+        return;
+    }
+
+    // ==========================================
+    // SECCION 1: INFORMACION GENERAL
+    // ==========================================
+    archivo << "# SIMULACION DE COLISIONES MULTIPLES\n";
+    archivo << "# Practica 5 - Informatica II - Universidad de Antioquia\n";
+    archivo << "#\n";
+    archivo << "# Box: " << anchoBox << " x " << altoBox << "\n";
+    archivo << "# Tiempo simulado: " << tiempoActual << " segundos\n";
+    archivo << "# Delta tiempo (dt): " << dt << " segundos\n";
+    archivo << "# Particulas activas: " << getNumParticulasActivas() << "/" << particulas.size() << "\n";
+    archivo << "# Total colisiones: " << eventosColision.size() << "\n";
+    archivo << "#\n";
+
+    // ==========================================
+    // SECCION 2: OBSTACULOS
+    // ==========================================
+    archivo << "# OBSTACULOS\n";
+    archivo << "# Formato: obstaculo,id,x,y,ancho,alto,coef_restitucion\n";
+    for (size_t i = 0; i < obstaculos.size(); i++) {
+        archivo << "obstaculo," << i << ","
+                << obstaculos[i]->getX() << ","
+                << obstaculos[i]->getY() << ","
+                << obstaculos[i]->getAncho() << ","
+                << obstaculos[i]->getAlto() << ","
+                << obstaculos[i]->getCoefRestitucion() << "\n";
+    }
+    archivo << "#\n";
+
+    // ==========================================
+    // SECCION 3: ESTADO FINAL DE PARTICULAS
+    // ==========================================
+    archivo << "# PARTICULAS_FINALES\n";
+    archivo << "# Formato: particula,id,x,y,vx,vy,masa,radio,activa\n";
+    for (const auto& p : particulas) {
+        archivo << "particula," << p->getId() << ","
+                << p->getX() << ","
+                << p->getY() << ","
+                << p->getVx() << ","
+                << p->getVy() << ","
+                << p->getMasa() << ","
+                << p->getRadio() << ","
+                << (p->estaActiva() ? 1 : 0) << "\n";
+    }
+    archivo << "#\n";
+
+    // ==========================================
+    // SECCION 4: COLISIONES
+    // ==========================================
+    archivo << "# COLISIONES\n";
+    archivo << "# Formato: colision,tiempo,tipo,id1,id2,detalles\n";
+    for (const auto& evento : eventosColision) {
+        archivo << "colision," << evento.tiempo << ","
+                << evento.tipo << ","
+                << evento.id1 << ","
+                << evento.id2 << ","
+                << evento.detalles << "\n";
+    }
+
+    archivo.close();
+    std::cout << " Simulacion exportada a: " << nombreArchivo << std::endl;
 }
