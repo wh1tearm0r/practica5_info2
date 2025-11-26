@@ -13,13 +13,23 @@ SOURCES += \
     jugador.cpp \
     main.cpp \
     mainwindow.cpp \
-    personaje.cpp
+    motorcolisiones.cpp \
+    muro.cpp \
+    obstaculo.cpp \
+    particula.cpp \
+    personaje.cpp \
+    proyectil.cpp
 
 HEADERS += \
     enemigo.h \
     jugador.h \
     mainwindow.h \
-    personaje.h
+    motorcolisiones.h \
+    muro.h \
+    obstaculo.h \
+    particula.h \
+    personaje.h \
+    proyectil.h
 
 FORMS += \
     mainwindow.ui
