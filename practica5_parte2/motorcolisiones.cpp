@@ -1,140 +1,119 @@
-#include "MotorColisiones.h"
+#include "motorcolisiones.h"
 #include <cmath>
 
-MotorColisiones::MotorColisiones(double ancho, double alto, double coefMuros)
-    : limitesEscenario(0, 0, ancho, alto),
-    coefRestitucionMuros(coefMuros)
-{
+MotorColisiones::MotorColisiones(double ancho, double alto, double coefPared)
+    : anchoEscenario(ancho), altoEscenario(alto), coefRestitucionParedes(coefPared) {
 }
 
-InfoColision MotorColisiones::verificarColisiones(
-    Proyectil& proyectil,
-    const std::vector<Muro*>& muros,
-    const QPointF& posRival1,
-    const QPointF& posRival2)
+InfoColision MotorColisiones::verificarColisiones(Proyectil &p,
+                                                  std::vector<Muro*> &muros,
+                                                  const QPointF &rivalJ1,
+                                                  const QPointF &rivalJ2,
+                                                  int jugadorAtacante)
 {
     InfoColision info;
+    info.ocurrioColision = false;
 
-    if (!proyectil.estaActiva()) {
-        return info;
-    }
+    double px = p.getX();
+    double py = p.getY();
+    double radio = p.getRadio();
 
-    //Verificar impacto con rivales (fin del juego)
-    int idJugadorProyectil = proyectil.getIdJugador();
+    // COLISION CON PAREDES (ELASTICA)
 
-    // El jugador 1 intenta impactar al rival 2 y viceversa
-    if (idJugadorProyectil == 1) {
-        if (verificarImpactoRival(proyectil, posRival2)) {
-            info.ocurrioColision = true;
-            info.tipoColision = "rival";
-            info.momentoImpacto = calcularMomentoLineal(proyectil);
-            info.indiceObjetoImpactado = 2;
-            info.puntoImpacto = QPointF(proyectil.getX(), proyectil.getY());
-
-            proyectil.desactivar();
-            return info;
-        }
-    } else if (idJugadorProyectil == 2) {
-        if (verificarImpactoRival(proyectil, posRival1)) {
-            info.ocurrioColision = true;
-            info.tipoColision = "rival";
-            info.momentoImpacto = calcularMomentoLineal(proyectil);
-            info.indiceObjetoImpactado = 1;
-            info.puntoImpacto = QPointF(proyectil.getX(), proyectil.getY());
-
-            proyectil.desactivar();
-            return info;
-        }
-    }
-
-    // Colisiones con muros (inelásticas)
-    for (size_t i = 0; i < muros.size(); i++) {
-        if (muros[i]->estaDestruido()) continue;
-
-        if (muros[i]->getIdPropietario() == idJugadorProyectil) continue;
-
-        if (procesarColisionMuro(proyectil, *muros[i])) {
-            info.ocurrioColision = true;
-            info.tipoColision = "muro";
-            info.momentoImpacto = calcularMomentoLineal(proyectil);
-            info.indiceObjetoImpactado = static_cast<int>(i);
-            info.puntoImpacto = QPointF(proyectil.getX(), proyectil.getY());
-            return info;
-        }
-    }
-
-    // Colisiones con paredes (elásticas)
-    if (procesarColisionParedes(proyectil)) {
+    // Pared izquierda
+    if (px - radio <= 0) {
+        p.setX(radio + 0.5);
+        p.rebotarParedVertical();
         info.ocurrioColision = true;
         info.tipoColision = "pared";
-        info.momentoImpacto = calcularMomentoLineal(proyectil);
-        info.puntoImpacto = QPointF(proyectil.getX(), proyectil.getY());
-
         return info;
+    }
+
+    // Pared derecha
+    if (px + radio >= anchoEscenario) {
+        p.setX(anchoEscenario - radio - 0.5);
+        p.rebotarParedVertical();
+        info.ocurrioColision = true;
+        info.tipoColision = "pared";
+        return info;
+    }
+
+    // Pared superior
+    if (py - radio <= 0) {
+        p.setY(radio + 0.5);
+        p.rebotarParedHorizontal();
+        info.ocurrioColision = true;
+        info.tipoColision = "pared";
+        return info;
+    }
+
+    // Pared inferior (SUELO)
+    if (py + radio >= altoEscenario) {
+        p.setY(altoEscenario - radio - 0.5);
+        p.rebotarParedHorizontal();
+        info.ocurrioColision = true;
+        info.tipoColision = "pared";
+        return info;
+    }
+
+    // COLISION CON MUROS (INELASTICA)
+    // SOLO CON MUROS DEL ENEMIGO
+
+    for (size_t i = 0; i < muros.size(); i++) {
+        if (muros[i] && !muros[i]->estaDestruido()) {
+
+            // Solo colisionar con muros del OTRO jugador
+            int propietarioMuro = muros[i]->getIdPropietario();
+
+            // Si el muro es del atacante, IGNORAR
+            if (propietarioMuro == jugadorAtacante) {
+                continue;  // Saltar este muro
+            }
+
+            // Si llegamos aqui, el muro es del enemigo
+            if (muros[i]->colisionaCon(p)) {
+                muros[i]->aplicarRebote(p);
+
+                double momento = p.getMomentoLineal();
+
+                info.ocurrioColision = true;
+                info.tipoColision = "muro";
+                info.momentoImpacto = momento;
+                info.indiceObjetoImpactado = static_cast<int>(i);
+                info.puntoImpacto = QPointF(px, py);
+
+                return info;
+            }
+        }
+    }
+
+    // COLISION CON RIVALES
+
+    // Si es turno del Jugador 1, solo puede impactar al Rival 2
+    if (jugadorAtacante == 1) {
+        double distRival2 = std::sqrt(std::pow(px - rivalJ2.x(), 2) +
+                                      std::pow(py - (rivalJ2.y() + 20), 2));
+        if (distRival2 <= radio + 20) {
+            p.desactivar();
+            info.ocurrioColision = true;
+            info.tipoColision = "rival";
+            info.indiceObjetoImpactado = 2;
+            return info;
+        }
+    }
+
+    // Si es turno del Jugador 2, solo puede impactar al Rival 1
+    if (jugadorAtacante == 2) {
+        double distRival1 = std::sqrt(std::pow(px - rivalJ1.x(), 2) +
+                                      std::pow(py - (rivalJ1.y() + 20), 2));
+        if (distRival1 <= radio + 20) {
+            p.desactivar();
+            info.ocurrioColision = true;
+            info.tipoColision = "rival";
+            info.indiceObjetoImpactado = 1;
+            return info;
+        }
     }
 
     return info;
 }
-
-bool MotorColisiones::procesarColisionParedes(Proyectil& proyectil) {
-    double x = proyectil.getX();
-    double y = proyectil.getY();
-    double radio = proyectil.getRadio();
-
-    bool huboRebote = false;
-
-    if (x - radio <= limitesEscenario.left()) {
-        proyectil.setX(limitesEscenario.left() + radio + 1.0);
-        proyectil.rebotarParedVertical();
-        huboRebote = true;
-    }
-    if (x + radio >= limitesEscenario.right()) {
-        proyectil.setX(limitesEscenario.right() - radio - 1.0);
-        proyectil.rebotarParedVertical();
-        huboRebote = true;
-    }
-    if (y - radio <= limitesEscenario.top()) {
-        proyectil.setY(limitesEscenario.top() + radio + 1.0);
-        proyectil.rebotarParedHorizontal();
-        huboRebote = true;
-    }
-    if (y + radio >= limitesEscenario.bottom()) {
-        proyectil.setY(limitesEscenario.bottom() - radio - 1.0);
-        proyectil.rebotarParedHorizontal();
-        huboRebote = true;
-    }
-
-    return huboRebote;
-}
-
-bool MotorColisiones::procesarColisionMuro(Proyectil& proyectil, Muro& muro) {
-    bool huboColision = muro.aplicarRebote(proyectil);
-
-    return huboColision;
-}
-
-bool MotorColisiones::verificarImpactoRival(const Proyectil& proyectil,
-                                            const QPointF& posRival,
-                                            double radioDeteccion) const {
-    if (!proyectil.estaActiva()) return false;
-
-    double dx = proyectil.getX() - posRival.x();
-    double dy = proyectil.getY() - posRival.y();
-    double distancia = sqrt(dx*dx + dy*dy);
-
-    return distancia <= (proyectil.getRadio() + radioDeteccion);
-}
-
-double MotorColisiones::calcularMomentoLineal(const Proyectil& proyectil) const {
-    return proyectil.getMomentoLineal();
-}
-
-bool MotorColisiones::puntoEnRectangulo(const QPointF& punto,
-                                        const QRectF& rect,
-                                        double margen) const {
-    return (punto.x() >= rect.left() - margen &&
-            punto.x() <= rect.right() + margen &&
-            punto.y() >= rect.top() - margen &&
-            punto.y() <= rect.bottom() + margen);
-}
-

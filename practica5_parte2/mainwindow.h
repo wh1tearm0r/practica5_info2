@@ -10,9 +10,8 @@
 #include <QGraphicsLineItem>
 #include <QTimer>
 #include <QSlider>
-#include <QPushButton>
-#include <QLabel>
 #include <QSpinBox>
+#include <QLabel>
 #include <QKeyEvent>
 #include <vector>
 #include "proyectil.h"
@@ -40,6 +39,7 @@ private slots:
     void actualizarInfoAngulo(int valor);
     void actualizarInfoVelocidad(int valor);
     void actualizarSimulacion();
+    void verificarTimeout();
 
 private:
     Ui::MainWindow *ui;
@@ -72,14 +72,14 @@ private:
     QSlider *sliderVelocidad;
     QSpinBox *spinAngulo;
     QSpinBox *spinVelocidad;
-    QPushButton *btnDisparar;
-    QPushButton *btnReset;
     QLabel *labelTurno;
     QLabel *labelAngulo;
     QLabel *labelVelocidad;
+    QLabel *labelEstadoColision;
 
     // Motor del juego
     QTimer *timer;
+    QTimer *timerTimeout; // Timer de 15 segundos
     Proyectil *proyectilActivo;
     std::vector<Muro*> muros;
     MotorColisiones *motorColisiones;
@@ -88,6 +88,9 @@ private:
     int turnoActual;
     bool juegoActivo;
     bool proyectilEnMovimiento;
+    QString ultimoTipoColision;
+    int contadorColisionesElasticas;
+    double tiempoVueloProyectil;
 
     // Constantes
     const double ANCHO_ESCENARIO = 1000.0;
@@ -96,6 +99,8 @@ private:
     const double GRAVEDAD = 980.0;
     const double DT = 0.016;
     const double FACTOR_DANIO = 0.05;
+    const double TIMEOUT_SEGUNDOS = 15.0;
+    const double VELOCIDAD_MINIMA = 50.0;
 
     // Posiciones
     QPointF posCanonJ1;
@@ -108,7 +113,6 @@ private:
     void configurarEscena();
     void crearElementosEstaticos();
     void crearMuros();
-    void crearControles();
     void dibujarCanon(QGraphicsRectItem* &baseCanon, QGraphicsLineItem* &tubo,
                       const QPointF &pos, int jugador);
     void dibujarRival(QGraphicsEllipseItem* &rival, const QPointF &pos, int jugador);
@@ -120,6 +124,8 @@ private:
     void verificarColisiones();
     void mostrarVictoria(int jugadorGanador);
     void actualizarAnguloCanon();
+    void actualizarEstadoColision(const QString &tipo);
+    bool proyectilDetenido();
 };
 
 #endif // MAINWINDOW_H
