@@ -13,6 +13,7 @@
 #include <QPushButton>
 #include <QLabel>
 #include <QSpinBox>
+#include <QKeyEvent>
 #include <vector>
 #include "proyectil.h"
 #include "muro.h"
@@ -30,6 +31,9 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+
 private slots:
     void disparar();
     void resetearJuego();
@@ -44,8 +48,7 @@ private:
     QGraphicsScene *scene;
     QGraphicsView *view;
 
-    // Items graficos de elementos estaticos
-    QGraphicsRectItem *itemEscenario;
+    // Items graficos
     QGraphicsRectItem *itemSuelo;
     QGraphicsRectItem *itemCanonJ1;
     QGraphicsRectItem *itemCanonJ2;
@@ -53,19 +56,18 @@ private:
     QGraphicsLineItem *tuboCanonJ2;
     QGraphicsEllipseItem *itemRivalJ1;
     QGraphicsEllipseItem *itemRivalJ2;
+    QGraphicsEllipseItem *itemProyectil;
 
-    // Items de los muros
+    // Items de muros
     std::vector<QGraphicsRectItem*> itemsMuros;
     std::vector<QGraphicsTextItem*> textosVidaMuros;
-
-    // Item del proyectil en movimiento
-    QGraphicsEllipseItem *itemProyectil;
 
     // Textos informativos
     QGraphicsTextItem *textoTurno;
     QGraphicsTextItem *textoEstado;
+    QGraphicsTextItem *textoInstrucciones;
 
-    // Controles de UI (Panel derecho)
+    // Controles UI
     QSlider *sliderAngulo;
     QSlider *sliderVelocidad;
     QSpinBox *spinAngulo;
@@ -76,38 +78,39 @@ private:
     QLabel *labelAngulo;
     QLabel *labelVelocidad;
 
-    // Timer para animacion
+    // Motor del juego
     QTimer *timer;
-
     Proyectil *proyectilActivo;
     std::vector<Muro*> muros;
     MotorColisiones *motorColisiones;
 
-    // Variables de estado del juego
+    // Estado del juego
     int turnoActual;
     bool juegoActivo;
     bool proyectilEnMovimiento;
 
-    // Constantes del juego
+    // Constantes
     const double ANCHO_ESCENARIO = 1000.0;
     const double ALTO_ESCENARIO = 600.0;
     const double MASA_PROYECTIL = 1.0;
     const double GRAVEDAD = 980.0;
     const double DT = 0.016;
+    const double FACTOR_DANIO = 0.05;
 
-    // Posiciones de elementos
+    // Posiciones
     QPointF posCanonJ1;
     QPointF posCanonJ2;
     QPointF posRivalJ1;
     QPointF posRivalJ2;
 
-    // ===== METODOS GRAFICOS =====
+    // Metodos privados
     void configurarInterfaz();
     void configurarEscena();
     void crearElementosEstaticos();
     void crearMuros();
     void crearControles();
-    void dibujarCanon(QGraphicsRectItem* &baseCanon, QGraphicsLineItem* &tubo, const QPointF &pos, int jugador);
+    void dibujarCanon(QGraphicsRectItem* &baseCanon, QGraphicsLineItem* &tubo,
+                      const QPointF &pos, int jugador);
     void dibujarRival(QGraphicsEllipseItem* &rival, const QPointF &pos, int jugador);
     void actualizarVisualizacion();
     void actualizarBarrasVida();
@@ -116,6 +119,7 @@ private:
     void cambiarTurno();
     void verificarColisiones();
     void mostrarVictoria(int jugadorGanador);
+    void actualizarAnguloCanon();
 };
 
 #endif // MAINWINDOW_H

@@ -2,11 +2,8 @@
 #include "ui_mainwindow.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QGroupBox>
+#include <QGraphicsDropShadowEffect>
 #include <QMessageBox>
-#include <QPen>
-#include <QBrush>
-#include <QFont>
 #include <cmath>
 
 #ifndef M_PI
@@ -18,7 +15,6 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , scene(nullptr)
     , view(nullptr)
-    , itemEscenario(nullptr)
     , itemSuelo(nullptr)
     , itemCanonJ1(nullptr)
     , itemCanonJ2(nullptr)
@@ -29,6 +25,16 @@ MainWindow::MainWindow(QWidget *parent)
     , itemProyectil(nullptr)
     , textoTurno(nullptr)
     , textoEstado(nullptr)
+    , textoInstrucciones(nullptr)
+    , sliderAngulo(nullptr)
+    , sliderVelocidad(nullptr)
+    , spinAngulo(nullptr)
+    , spinVelocidad(nullptr)
+    , btnDisparar(nullptr)
+    , btnReset(nullptr)
+    , labelTurno(nullptr)
+    , labelAngulo(nullptr)
+    , labelVelocidad(nullptr)
     , timer(nullptr)
     , proyectilActivo(nullptr)
     , motorColisiones(nullptr)
@@ -38,23 +44,19 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // Configuracion de la ventana
-    setWindowTitle("Juego de Estrategia Militar - Practica 5 - Informatica II");
-    resize(1400, 800);
-
-    // Definir posiciones de elementos
-    posCanonJ1 = QPointF(50, ALTO_ESCENARIO - 50);
-    posCanonJ2 = QPointF(ANCHO_ESCENARIO - 50, ALTO_ESCENARIO - 50);
-    posRivalJ1 = QPointF(150, ALTO_ESCENARIO - 100);
-    posRivalJ2 = QPointF(ANCHO_ESCENARIO - 150, ALTO_ESCENARIO - 100);
-
-    // Configurar interfaz y escena
     configurarInterfaz();
     configurarEscena();
+    crearElementosEstaticos();
+    crearMuros();
 
     // Timer para animacion
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &MainWindow::actualizarSimulacion);
+
+    // Motor de colisiones
+    motorColisiones = new MotorColisiones(ANCHO_ESCENARIO, ALTO_ESCENARIO, 0.7);
+
+    actualizarVisualizacion();
 }
 
 MainWindow::~MainWindow()
@@ -64,308 +66,135 @@ MainWindow::~MainWindow()
         delete timer;
     }
 
-    limpiarProyectil();
+    if (proyectilActivo) {
+        delete proyectilActivo;
+    }
 
-    // Limpiar muros
     for (auto muro : muros) {
         delete muro;
     }
-    muros.clear();
 
     if (motorColisiones) {
         delete motorColisiones;
     }
 
-    if (scene) {
-        delete scene;
-    }
-
     delete ui;
 }
 
-// ==== CONFIGURACION DE LA INTERFAZ GRAFICA ====
-
 void MainWindow::configurarInterfaz()
 {
-    // Widget central
+    // Widget central con layout horizontal
     QWidget *centralWidget = new QWidget(this);
-    setCentralWidget(centralWidget);
+    QHBoxLayout *mainLayout = new QHBoxLayout(centralWidget);
+    mainLayout->setContentsMargins(5, 5, 5, 5);
+    mainLayout->setSpacing(10);
 
-    // Layout principal horizontal (Escena + Panel de controles)
-    QHBoxLayout *layoutPrincipal = new QHBoxLayout(centralWidget);
-    layoutPrincipal->setSpacing(15);
-    layoutPrincipal->setContentsMargins(10, 10, 10, 10);
-
-    // ===== PANEL IZQUIERDO: ESCENA DE JUEGO =====
-    QVBoxLayout *layoutIzquierdo = new QVBoxLayout();
-
-    // Crear escena y vista
-    scene = new QGraphicsScene(this);
-    scene->setSceneRect(0, 0, ANCHO_ESCENARIO, ALTO_ESCENARIO);
-    scene->setBackgroundBrush(QBrush(QColor(135, 206, 235))); // Cielo azul
-
-    view = new QGraphicsView(scene, this);
-    view->setRenderHint(QPainter::Antialiasing);
-    view->setFixedSize(static_cast<int>(ANCHO_ESCENARIO) + 20, static_cast<int>(ALTO_ESCENARIO) + 20);
+    // Vista grafica
+    view = new QGraphicsView(centralWidget);
+    view->setFixedSize(1050, 650);
     view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    view->setStyleSheet("border: 3px solid #333333; background-color: #f0f0f0;");
+    mainLayout->addWidget(view);
 
-    layoutIzquierdo->addWidget(view);
-    layoutPrincipal->addLayout(layoutIzquierdo);
+    // Panel de controles
+    QWidget *panelControles = new QWidget(centralWidget);
+    panelControles->setFixedWidth(230);
+    QVBoxLayout *layoutControles = new QVBoxLayout(panelControles);
 
-    // ===== PANEL DERECHO: CONTROLES =====
-    crearControles();
-}
+    layoutControles->addStretch();
 
-void MainWindow::crearControles()
-{
-    QVBoxLayout *layoutDerecho = new QVBoxLayout();
-    layoutDerecho->setSpacing(15);
-
-    // ===== GRUPO: TURNO ACTUAL =====
-    QGroupBox *grupoTurno = new QGroupBox("TURNO ACTUAL");
-    grupoTurno->setStyleSheet("QGroupBox { font-weight: bold; font-size: 14px; }");
-    QVBoxLayout *layoutTurno = new QVBoxLayout();
-
-    labelTurno = new QLabel("JUGADOR 1");
-    QFont fuenteTurno("Arial", 22, QFont::Bold);
-    labelTurno->setFont(fuenteTurno);
+    // Label de turno
+    labelTurno = new QLabel("Turno: Jugador 1", panelControles);
+    labelTurno->setStyleSheet("font-size: 18px; font-weight: bold; color: #2196F3;");
     labelTurno->setAlignment(Qt::AlignCenter);
-    labelTurno->setStyleSheet(
-        "color: #FF4444; "
-        "background-color: #FFE6E6; "
-        "padding: 20px; "
-        "border-radius: 10px; "
-        "border: 3px solid #FF4444;"
-        );
+    layoutControles->addWidget(labelTurno);
 
-    layoutTurno->addWidget(labelTurno);
-    grupoTurno->setLayout(layoutTurno);
-    layoutDerecho->addWidget(grupoTurno);
+    layoutControles->addSpacing(30);
 
-    // ===== GRUPO: CONTROL DE ANGULO =====
-    QGroupBox *grupoAngulo = new QGroupBox("ANGULO DE DISPARO");
-    grupoAngulo->setStyleSheet("QGroupBox { font-weight: bold; font-size: 12px; }");
-    QVBoxLayout *layoutAngulo = new QVBoxLayout();
-
-    labelAngulo = new QLabel("Angulo: 45°");
+    // Control de angulo
+    labelAngulo = new QLabel("Ángulo: 45°", panelControles);
+    labelAngulo->setStyleSheet("font-size: 14px;");
     labelAngulo->setAlignment(Qt::AlignCenter);
-    QFont fuenteLabel("Arial", 12, QFont::Bold);
-    labelAngulo->setFont(fuenteLabel);
-    labelAngulo->setStyleSheet("padding: 5px; background-color: #E8F5E9; border-radius: 5px;");
+    layoutControles->addWidget(labelAngulo);
 
-    sliderAngulo = new QSlider(Qt::Horizontal);
-    sliderAngulo->setMinimum(0);
-    sliderAngulo->setMaximum(90);
+    sliderAngulo = new QSlider(Qt::Horizontal, panelControles);
+    sliderAngulo->setRange(0, 90);
     sliderAngulo->setValue(45);
-    sliderAngulo->setTickPosition(QSlider::TicksBelow);
-    sliderAngulo->setTickInterval(15);
-    sliderAngulo->setStyleSheet(
-        "QSlider::groove:horizontal { height: 8px; background: #CCCCCC; border-radius: 4px; }"
-        "QSlider::handle:horizontal { background: #4CAF50; width: 18px; margin: -5px 0; border-radius: 9px; }"
-        );
+    layoutControles->addWidget(sliderAngulo);
 
-    spinAngulo = new QSpinBox();
-    spinAngulo->setMinimum(0);
-    spinAngulo->setMaximum(90);
+    spinAngulo = new QSpinBox(panelControles);
+    spinAngulo->setRange(0, 90);
     spinAngulo->setValue(45);
     spinAngulo->setSuffix("°");
-    spinAngulo->setAlignment(Qt::AlignCenter);
-    spinAngulo->setStyleSheet("font-size: 14px; padding: 5px;");
+    layoutControles->addWidget(spinAngulo);
 
-    connect(sliderAngulo, &QSlider::valueChanged, this, &MainWindow::actualizarInfoAngulo);
-    connect(sliderAngulo, &QSlider::valueChanged, spinAngulo, &QSpinBox::setValue);
-    connect(spinAngulo, QOverload<int>::of(&QSpinBox::valueChanged), sliderAngulo, &QSlider::setValue);
+    layoutControles->addSpacing(20);
 
-    layoutAngulo->addWidget(labelAngulo);
-    layoutAngulo->addWidget(sliderAngulo);
-    layoutAngulo->addWidget(spinAngulo);
-    grupoAngulo->setLayout(layoutAngulo);
-    layoutDerecho->addWidget(grupoAngulo);
-
-    // ===== GRUPO: CONTROL DE VELOCIDAD =====
-    QGroupBox *grupoVelocidad = new QGroupBox("VELOCIDAD INICIAL");
-    grupoVelocidad->setStyleSheet("QGroupBox { font-weight: bold; font-size: 12px; }");
-    QVBoxLayout *layoutVelocidad = new QVBoxLayout();
-
-    labelVelocidad = new QLabel("Velocidad: 500 px/s");
+    // Control de velocidad
+    labelVelocidad = new QLabel("Velocidad: 400", panelControles);
+    labelVelocidad->setStyleSheet("font-size: 14px;");
     labelVelocidad->setAlignment(Qt::AlignCenter);
-    labelVelocidad->setFont(fuenteLabel);
-    labelVelocidad->setStyleSheet("padding: 5px; background-color: #E3F2FD; border-radius: 5px;");
+    layoutControles->addWidget(labelVelocidad);
 
-    sliderVelocidad = new QSlider(Qt::Horizontal);
-    sliderVelocidad->setMinimum(200);
-    sliderVelocidad->setMaximum(800);
-    sliderVelocidad->setValue(500);
-    sliderVelocidad->setTickPosition(QSlider::TicksBelow);
-    sliderVelocidad->setTickInterval(100);
-    sliderVelocidad->setStyleSheet(
-        "QSlider::groove:horizontal { height: 8px; background: #CCCCCC; border-radius: 4px; }"
-        "QSlider::handle:horizontal { background: #2196F3; width: 18px; margin: -5px 0; border-radius: 9px; }"
-        );
+    sliderVelocidad = new QSlider(Qt::Horizontal, panelControles);
+    sliderVelocidad->setRange(100, 800);
+    sliderVelocidad->setValue(400);
+    layoutControles->addWidget(sliderVelocidad);
 
-    spinVelocidad = new QSpinBox();
-    spinVelocidad->setMinimum(200);
-    spinVelocidad->setMaximum(800);
-    spinVelocidad->setValue(500);
-    spinVelocidad->setSuffix(" px/s");
-    spinVelocidad->setAlignment(Qt::AlignCenter);
-    spinVelocidad->setStyleSheet("font-size: 14px; padding: 5px;");
+    spinVelocidad = new QSpinBox(panelControles);
+    spinVelocidad->setRange(100, 800);
+    spinVelocidad->setValue(400);
+    layoutControles->addWidget(spinVelocidad);
 
+    layoutControles->addSpacing(30);
+
+    // Botones
+    btnDisparar = new QPushButton("Disparar (ESPACIO)", panelControles);
+    btnDisparar->setStyleSheet("font-size: 14px; padding: 12px; background-color: #4CAF50; "
+                               "color: white; border-radius: 5px; font-weight: bold;");
+    layoutControles->addWidget(btnDisparar);
+
+    btnReset = new QPushButton("Reiniciar (R)", panelControles);
+    btnReset->setStyleSheet("font-size: 14px; padding: 12px; background-color: #FF5722; "
+                            "color: white; border-radius: 5px; font-weight: bold;");
+    layoutControles->addWidget(btnReset);
+
+    layoutControles->addStretch();
+
+    mainLayout->addWidget(panelControles);
+    setCentralWidget(centralWidget);
+
+    // Conectar señales
+    connect(sliderAngulo, &QSlider::valueChanged, this, &MainWindow::actualizarInfoAngulo);
+    connect(spinAngulo, QOverload<int>::of(&QSpinBox::valueChanged), sliderAngulo, &QSlider::setValue);
     connect(sliderVelocidad, &QSlider::valueChanged, this, &MainWindow::actualizarInfoVelocidad);
-    connect(sliderVelocidad, &QSlider::valueChanged, spinVelocidad, &QSpinBox::setValue);
     connect(spinVelocidad, QOverload<int>::of(&QSpinBox::valueChanged), sliderVelocidad, &QSlider::setValue);
-
-    layoutVelocidad->addWidget(labelVelocidad);
-    layoutVelocidad->addWidget(sliderVelocidad);
-    layoutVelocidad->addWidget(spinVelocidad);
-    grupoVelocidad->setLayout(layoutVelocidad);
-    layoutDerecho->addWidget(grupoVelocidad);
-
-    // ===== BOTONES DE ACCION =====
-    btnDisparar = new QPushButton("DISPARAR");
-    btnDisparar->setMinimumHeight(60);
-    btnDisparar->setStyleSheet(
-        "QPushButton {"
-        "   background-color: #4CAF50;"
-        "   color: white;"
-        "   font-size: 18px;"
-        "   font-weight: bold;"
-        "   border-radius: 10px;"
-        "   padding: 15px;"
-        "   border: 3px solid #45a049;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: #45a049;"
-        "}"
-        "QPushButton:pressed {"
-        "   background-color: #3d8b40;"
-        "}"
-        "QPushButton:disabled {"
-        "   background-color: #CCCCCC;"
-        "   color: #666666;"
-        "   border: 3px solid #AAAAAA;"
-        "}"
-        );
     connect(btnDisparar, &QPushButton::clicked, this, &MainWindow::disparar);
-
-    btnReset = new QPushButton("REINICIAR JUEGO");
-    btnReset->setMinimumHeight(60);
-    btnReset->setStyleSheet(
-        "QPushButton {"
-        "   background-color: #2196F3;"
-        "   color: white;"
-        "   font-size: 18px;"
-        "   font-weight: bold;"
-        "   border-radius: 10px;"
-        "   padding: 15px;"
-        "   border: 3px solid #0b7dda;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: #0b7dda;"
-        "}"
-        "QPushButton:pressed {"
-        "   background-color: #0a6bc4;"
-        "}"
-        );
     connect(btnReset, &QPushButton::clicked, this, &MainWindow::resetearJuego);
-
-    layoutDerecho->addWidget(btnDisparar);
-    layoutDerecho->addWidget(btnReset);
-
-    // ===== INSTRUCCIONES =====
-    QGroupBox *grupoInstrucciones = new QGroupBox("INSTRUCCIONES");
-    grupoInstrucciones->setStyleSheet("QGroupBox { font-weight: bold; font-size: 12px; }");
-    QVBoxLayout *layoutInstruc = new QVBoxLayout();
-
-    QLabel *textoInstrucciones = new QLabel(
-        ". Ajusta el angulo (0-90°)\n"
-        ". Ajusta la velocidad (200-800 px/s)\n"
-        ". Presiona DISPARAR\n"
-        ". Destruye muros enemigos\n"
-        ". Impacta al rival para GANAR\n\n"
-        " # Paredes: Rebote ELASTICO\n"
-        " * Muros: Rebote INELASTICO\n"
-        " $ Rival: ¡VICTORIA!"
-        );
-    textoInstrucciones->setWordWrap(true);
-    textoInstrucciones->setStyleSheet(
-        "padding: 12px; "
-        "background-color: #FFF9C4; "
-        "border-radius: 8px; "
-        "font-size: 11px; "
-        "line-height: 1.4;"
-        );
-
-    layoutInstruc->addWidget(textoInstrucciones);
-    grupoInstrucciones->setLayout(layoutInstruc);
-    layoutDerecho->addWidget(grupoInstrucciones);
-
-    layoutDerecho->addStretch();
-
-    // Agregar panel derecho al layout principal
-    QWidget *panelDerecho = new QWidget();
-    panelDerecho->setLayout(layoutDerecho);
-    panelDerecho->setMaximumWidth(380);
-    panelDerecho->setStyleSheet("background-color: #FAFAFA; padding: 10px; border-radius: 10px;");
-
-    QHBoxLayout *layoutPrincipal = qobject_cast<QHBoxLayout*>(centralWidget()->layout());
-    if (layoutPrincipal) {
-        layoutPrincipal->addWidget(panelDerecho);
-    }
 }
-
-// === CONFIGURACION DE LA ESCENA ===
 
 void MainWindow::configurarEscena()
 {
-    // Crear motor de colisiones
-    motorColisiones = new MotorColisiones(ANCHO_ESCENARIO, ALTO_ESCENARIO, 0.7);
+    scene = new QGraphicsScene(this);
+    scene->setSceneRect(0, 0, ANCHO_ESCENARIO, ALTO_ESCENARIO);
+    scene->setBackgroundBrush(QBrush(QColor(135, 206, 235)));
 
-    // Crear elementos estaticos visuales
-    crearElementosEstaticos();
-
-    // Crear muros
-    crearMuros();
-
-    // Textos informativos en la escena
-    textoTurno = scene->addText("");
-    QFont fuenteInfo("Arial", 14, QFont::Bold);
-    textoTurno->setFont(fuenteInfo);
-    textoTurno->setDefaultTextColor(Qt::white);
-    textoTurno->setPos(10, 10);
-    textoTurno->setZValue(100);
-
-    textoEstado = scene->addText("");
-    textoEstado->setFont(fuenteInfo);
-    textoEstado->setDefaultTextColor(QColor(255, 255, 0));
-    textoEstado->setPos(ANCHO_ESCENARIO / 2 - 100, 10);
-    textoEstado->setZValue(100);
-
-    actualizarVisualizacion();
+    view->setScene(scene);
+    view->setRenderHint(QPainter::Antialiasing);
 }
 
 void MainWindow::crearElementosEstaticos()
 {
-    // Borde del escenario
-    QPen penEscenario(Qt::black, 5);
-    itemEscenario = scene->addRect(0, 0, ANCHO_ESCENARIO, ALTO_ESCENARIO, penEscenario, Qt::NoBrush);
-    itemEscenario->setZValue(1);
-
     // Suelo
-    itemSuelo = scene->addRect(
-        0, ALTO_ESCENARIO - 30, ANCHO_ESCENARIO, 30,
-        QPen(Qt::darkGreen, 2), QBrush(QColor(139, 69, 19))
-        );
-    itemSuelo->setZValue(2);
+    itemSuelo = scene->addRect(0, ALTO_ESCENARIO - 50, ANCHO_ESCENARIO, 50,
+                               QPen(Qt::NoPen),
+                               QBrush(QColor(139, 69, 19)));
 
-    // Decoracion: pasto sobre el suelo
-    QGraphicsRectItem *pasto = scene->addRect(
-        0, ALTO_ESCENARIO - 35, ANCHO_ESCENARIO, 5,
-        Qt::NoPen, QBrush(QColor(34, 139, 34))
-        );
-    pasto->setZValue(3);
+    // Posiciones
+    posCanonJ1 = QPointF(80, ALTO_ESCENARIO - 80);
+    posCanonJ2 = QPointF(ANCHO_ESCENARIO - 80, ALTO_ESCENARIO - 80);
+    posRivalJ1 = QPointF(80, ALTO_ESCENARIO - 200);
+    posRivalJ2 = QPointF(ANCHO_ESCENARIO - 80, ALTO_ESCENARIO - 200);
 
     // Dibujar cañones
     dibujarCanon(itemCanonJ1, tuboCanonJ1, posCanonJ1, 1);
@@ -374,178 +203,217 @@ void MainWindow::crearElementosEstaticos()
     // Dibujar rivales
     dibujarRival(itemRivalJ1, posRivalJ1, 1);
     dibujarRival(itemRivalJ2, posRivalJ2, 2);
+
+    // Textos
+    textoTurno = scene->addText("Turno: Jugador 1");
+    textoTurno->setDefaultTextColor(Qt::white);
+    textoTurno->setFont(QFont("Arial", 16, QFont::Bold));
+    textoTurno->setPos(10, 10);
+
+    textoEstado = scene->addText("Listo para disparar");
+    textoEstado->setDefaultTextColor(Qt::yellow);
+    textoEstado->setFont(QFont("Arial", 12));
+    textoEstado->setPos(10, 45);
+
+    textoInstrucciones = scene->addText("↑↓: Ángulo | ESPACIO: Disparar | R: Reiniciar");
+    textoInstrucciones->setDefaultTextColor(Qt::white);
+    textoInstrucciones->setFont(QFont("Arial", 11));
+    textoInstrucciones->setPos(10, ALTO_ESCENARIO - 35);
 }
 
-void MainWindow::dibujarCanon(QGraphicsRectItem* &baseCanon, QGraphicsLineItem* &tubo, const QPointF &pos, int jugador)
+void MainWindow::crearMuros()
+{
+    // Configuracion de muros
+    struct ConfigMuro {
+        double x, y, ancho, alto, resistencia;
+        int propietario;
+    };
+
+    std::vector<ConfigMuro> configMuros = {
+        // Muros Jugador 1 (izquierda)
+        {30, ALTO_ESCENARIO - 280, 40, 150, 200.0, 1},   // Izquierdo
+        {150, ALTO_ESCENARIO - 280, 40, 150, 200.0, 1},  // Derecho
+        {50, ALTO_ESCENARIO - 320, 120, 40, 100.0, 1},   // Superior
+
+        // Muros Jugador 2 (derecha)
+        {ANCHO_ESCENARIO - 190, ALTO_ESCENARIO - 280, 40, 150, 200.0, 2}, // Izquierdo
+        {ANCHO_ESCENARIO - 70, ALTO_ESCENARIO - 280, 40, 150, 200.0, 2},  // Derecho
+        {ANCHO_ESCENARIO - 170, ALTO_ESCENARIO - 320, 120, 40, 100.0, 2}  // Superior
+    };
+
+    for (const auto& config : configMuros) {
+        Muro* muro = new Muro(config.x, config.y, config.ancho, config.alto,
+                              config.resistencia, config.propietario, 0.7);
+        muros.push_back(muro);
+
+        QColor colorMuro = (config.propietario == 1) ?
+                               QColor(100, 149, 237) : QColor(220, 20, 60);
+
+        QGraphicsRectItem* itemMuro = scene->addRect(config.x, config.y,
+                                                     config.ancho, config.alto,
+                                                     QPen(Qt::black, 2),
+                                                     QBrush(colorMuro));
+        itemsMuros.push_back(itemMuro);
+
+        QGraphicsTextItem* textoVida = scene->addText(QString::number((int)config.resistencia));
+        textoVida->setDefaultTextColor(Qt::white);
+        textoVida->setFont(QFont("Arial", 11, QFont::Bold));
+
+        double textX = config.x + config.ancho/2 - 15;
+        double textY = config.y + config.alto/2 - 12;
+        textoVida->setPos(textX, textY);
+        textosVidaMuros.push_back(textoVida);
+    }
+}
+
+void MainWindow::dibujarCanon(QGraphicsRectItem* &baseCanon, QGraphicsLineItem* &tubo,
+                              const QPointF &pos, int jugador)
 {
     QColor color = obtenerColorJugador(jugador);
 
-    // Base del cañon (rectangulo)
-    baseCanon = scene->addRect(
-        pos.x() - 20, pos.y() - 12, 40, 24,
-        QPen(Qt::black, 3), QBrush(color)
-        );
-    baseCanon->setZValue(10);
+    // Base
+    baseCanon = scene->addRect(pos.x() - 15, pos.y() - 10, 30, 20,
+                               QPen(Qt::black, 2),
+                               QBrush(color));
 
-    // Tubo del cañon (linea)
-    double anguloTubo = (jugador == 1) ? 45 : 135;
-    double largo = 30;
-    double rad = anguloTubo * M_PI / 180.0;
+    // Tubo
+    double longitud = 45;
+    double angulo = (jugador == 1) ? 45 : 135;
+    double anguloRad = angulo * M_PI / 180.0;
+    double xFin = pos.x() + longitud * cos(anguloRad);
+    double yFin = pos.y() - longitud * sin(anguloRad);
 
-    tubo = scene->addLine(
-        pos.x(), pos.y(),
-        pos.x() + largo * cos(rad), pos.y() - largo * sin(rad),
-        QPen(color.darker(120), 5)
-        );
-    tubo->setZValue(11);
-
-    // Ruedas del cañon (decoracion)
-    scene->addEllipse(pos.x() - 25, pos.y() + 5, 12, 12, QPen(Qt::black, 2), QBrush(Qt::darkGray))->setZValue(9);
-    scene->addEllipse(pos.x() + 13, pos.y() + 5, 12, 12, QPen(Qt::black, 2), QBrush(Qt::darkGray))->setZValue(9);
+    tubo = scene->addLine(pos.x(), pos.y(), xFin, yFin,
+                          QPen(color, 6, Qt::SolidLine, Qt::RoundCap));
 }
 
 void MainWindow::dibujarRival(QGraphicsEllipseItem* &rival, const QPointF &pos, int jugador)
 {
     QColor color = obtenerColorJugador(jugador);
 
-    // Cuerpo (circulo principal)
-    rival = scene->addEllipse(
-        pos.x() - 15, pos.y() - 15, 30, 30,
-        QPen(Qt::black, 3), QBrush(color)
-        );
-    rival->setZValue(10);
+    // Cuerpo (circulo)
+    rival = scene->addEllipse(pos.x() - 20, pos.y() - 40, 40, 40,
+                              QPen(Qt::black, 2),
+                              QBrush(color));
 
     // Cabeza
-    QGraphicsEllipseItem *cabeza = scene->addEllipse(
-        pos.x() - 12, pos.y() - 38, 24, 24,
-        QPen(Qt::black, 3), QBrush(color.lighter(120))
-        );
-    cabeza->setZValue(10);
-
-    // Ojos
-    scene->addEllipse(pos.x() - 8, pos.y() - 32, 5, 5, Qt::NoPen, QBrush(Qt::black))->setZValue(11);
-    scene->addEllipse(pos.x() + 3, pos.y() - 32, 5, 5, Qt::NoPen, QBrush(Qt::black))->setZValue(11);
-
-    // Boca (sonrisa)
-    QPainterPath boca;
-    boca.arcMoveTo(pos.x() - 8, pos.y() - 28, 16, 10, 180);
-    boca.arcTo(pos.x() - 8, pos.y() - 28, 16, 10, 180, 180);
-    scene->addPath(boca, QPen(Qt::black, 2))->setZValue(11);
+    scene->addEllipse(pos.x() - 10, pos.y() - 60, 20, 20,
+                      QPen(Qt::black, 2),
+                      QBrush(color.lighter(120)));
 
     // Brazos
-    QPen penExtremidades(color.darker(130), 4);
-    scene->addLine(pos.x() - 15, pos.y() - 5, pos.x() - 28, pos.y() + 5, penExtremidades)->setZValue(9);
-    scene->addLine(pos.x() + 15, pos.y() - 5, pos.x() + 28, pos.y() + 5, penExtremidades)->setZValue(9);
+    scene->addLine(pos.x() - 20, pos.y() - 25, pos.x() - 30, pos.y() - 15,
+                   QPen(Qt::black, 2));
+    scene->addLine(pos.x() + 20, pos.y() - 25, pos.x() + 30, pos.y() - 15,
+                   QPen(Qt::black, 2));
 
     // Piernas
-    scene->addLine(pos.x() - 8, pos.y() + 15, pos.x() - 12, pos.y() + 35, penExtremidades)->setZValue(9);
-    scene->addLine(pos.x() + 8, pos.y() + 15, pos.x() + 12, pos.y() + 35, penExtremidades)->setZValue(9);
+    scene->addLine(pos.x(), pos.y(), pos.x() - 15, pos.y() + 25,
+                   QPen(Qt::black, 2));
+    scene->addLine(pos.x(), pos.y(), pos.x() + 15, pos.y() + 25,
+                   QPen(Qt::black, 2));
 }
 
-void MainWindow::crearMuros()
+QColor MainWindow::obtenerColorJugador(int jugador)
 {
-    // Configuracion de muros para Jugador 1 (lado izquierdo)
-    double xBase1 = 100;
-    double yBase1 = ALTO_ESCENARIO - 150;
+    return (jugador == 1) ? QColor(65, 105, 225) : QColor(220, 20, 60);
+}
 
-    muros.push_back(new Muro(xBase1 - 50, yBase1 - 100, 40, 100, 100, 1, 0.7));    // Superior
-    muros.push_back(new Muro(xBase1 - 50, yBase1, 100, 40, 200, 1, 0.7));          // Izquierdo
-    muros.push_back(new Muro(xBase1 + 50, yBase1, 100, 40, 200, 1, 0.7));          // Derecho
-
-    // Configuracion de muros para Jugador 2 (lado derecho)
-    double xBase2 = ANCHO_ESCENARIO - 100;
-    double yBase2 = ALTO_ESCENARIO - 150;
-
-    muros.push_back(new Muro(xBase2 + 10, yBase2 - 100, 40, 100, 100, 2, 0.7));    // Superior
-    muros.push_back(new Muro(xBase2 - 150, yBase2, 100, 40, 200, 2, 0.7));         // Izquierdo
-    muros.push_back(new Muro(xBase2 - 50, yBase2, 100, 40, 200, 2, 0.7));          // Derecho
-
-    // Crear items graficos para los muros
-    for (size_t i = 0; i < muros.size(); i++) {
-        Muro *muro = muros[i];
-        QColor colorMuro = obtenerColorJugador(muro->getIdPropietario()).lighter(130);
-
-        QGraphicsRectItem *item = scene->addRect(
-            muro->getX(), muro->getY(),
-            muro->getAncho(), muro->getAlto(),
-            QPen(Qt::black, 3), QBrush(colorMuro)
-            );
-        item->setZValue(5);
-        itemsMuros.push_back(item);
-
-        // Texto de vida del muro
-        QGraphicsTextItem *textoVida = scene->addText("");
-        QFont fuenteVida("Arial", 11, QFont::Bold);
-        textoVida->setFont(fuenteVida);
-        textoVida->setDefaultTextColor(Qt::white);
-        textoVida->setZValue(6);
-        textosVidaMuros.push_back(textoVida);
+void MainWindow::disparar()
+{
+    if (!juegoActivo || proyectilEnMovimiento) {
+        return;
     }
 
-    actualizarBarrasVida();
+    double angulo = sliderAngulo->value();
+    double velocidad = sliderVelocidad->value();
+
+    // Ajustar angulo segun jugador
+    if (turnoActual == 2) {
+        angulo = 180 - angulo;
+    }
+
+    QPointF posInicial = (turnoActual == 1) ? posCanonJ1 : posCanonJ2;
+
+    proyectilActivo = new Proyectil(posInicial.x(), posInicial.y(),
+                                    angulo, velocidad,
+                                    MASA_PROYECTIL, turnoActual, GRAVEDAD);
+
+    itemProyectil = scene->addEllipse(0, 0, 12, 12,
+                                      QPen(Qt::black, 2),
+                                      QBrush(Qt::red));
+    itemProyectil->setPos(posInicial);
+
+    proyectilEnMovimiento = true;
+    timer->start(16);
+
+    textoEstado->setPlainText("Proyectil en vuelo...");
+    textoEstado->setDefaultTextColor(Qt::yellow);
+    btnDisparar->setEnabled(false);
 }
 
-void MainWindow::actualizarBarrasVida()
+void MainWindow::actualizarSimulacion()
 {
-    for (size_t i = 0; i < muros.size(); i++) {
-        if (i < textosVidaMuros.size() && muros[i]) {
-            double porcentaje = muros[i]->getPorcentajeVida();
-            int vida = static_cast<int>(muros[i]->getResistencia());
+    if (!proyectilActivo || !proyectilActivo->estaActiva()) {
+        timer->stop();
+        limpiarProyectil();
+        cambiarTurno();
+        return;
+    }
 
-            QString texto = QString("%1").arg(vida);
-            textosVidaMuros[i]->setPlainText(texto);
+    proyectilActivo->actualizarMovimiento(DT);
+    verificarColisiones();
 
-            // Centrar texto en el muro
-            double x = muros[i]->getX() + muros[i]->getAncho() / 2 - textosVidaMuros[i]->boundingRect().width() / 2;
-            double y = muros[i]->getY() + muros[i]->getAlto() / 2 - textosVidaMuros[i]->boundingRect().height() / 2;
-            textosVidaMuros[i]->setPos(x, y);
+    if (proyectilActivo && proyectilActivo->estaActiva() && itemProyectil) {
+        itemProyectil->setPos(proyectilActivo->getX(), proyectilActivo->getY());
+    }
+}
 
-            // Cambiar color del muro segun porcentaje de vida
-            if (i < itemsMuros.size() && itemsMuros[i]) {
-                QColor colorBase = obtenerColorJugador(muros[i]->getIdPropietario());
+void MainWindow::verificarColisiones()
+{
+    if (!proyectilActivo || !motorColisiones) return;
 
-                if (porcentaje > 0.7) {
-                    itemsMuros[i]->setBrush(QBrush(colorBase.lighter(130)));
-                } else if (porcentaje > 0.3) {
-                    itemsMuros[i]->setBrush(QBrush(QColor(255, 165, 0))); // Naranja
-                } else {
-                    itemsMuros[i]->setBrush(QBrush(QColor(220, 20, 60))); // Rojo
-                }
+    InfoColision info = motorColisiones->verificarColisiones(
+        *proyectilActivo, muros, posRivalJ1, posRivalJ2
+        );
 
-                // Ocultar muros destruidos
-                if (muros[i]->estaDestruido()) {
-                    itemsMuros[i]->setVisible(false);
-                    textosVidaMuros[i]->setVisible(false);
-                }
+    if (info.ocurrioColision) {
+        if (info.tipoColision == "rival") {
+            mostrarVictoria(turnoActual);
+        }
+        else if (info.tipoColision == "muro") {
+            int indiceMuro = info.indiceObjetoImpactado;
+            if (indiceMuro >= 0 && indiceMuro < (int)muros.size()) {
+                double danio = FACTOR_DANIO * info.momentoImpacto;
+                muros[indiceMuro]->recibirDanio(danio);
+                actualizarBarrasVida();
             }
         }
     }
 }
 
-// ==== ACTUALIZACION DE INFORMACION ====
-
-void MainWindow::actualizarInfoAngulo(int valor)
+void MainWindow::actualizarBarrasVida()
 {
-    labelAngulo->setText(QString("Ángulo: %1°").arg(valor));
-}
+    for (size_t i = 0; i < muros.size(); i++) {
+        if (i < textosVidaMuros.size()) {
+            int vida = (int)muros[i]->getResistencia();
 
-void MainWindow::actualizarInfoVelocidad(int valor)
-{
-    labelVelocidad->setText(QString("Velocidad: %1 px/s").arg(valor));
-}
+            if (muros[i]->estaDestruido()) {
+                itemsMuros[i]->setBrush(QBrush(QColor(50, 50, 50)));
+                textosVidaMuros[i]->setPlainText("X");
+                textosVidaMuros[i]->setDefaultTextColor(Qt::red);
+            } else {
+                textosVidaMuros[i]->setPlainText(QString::number(vida));
 
-void MainWindow::actualizarVisualizacion()
-{
-    // Actualizar posicion del proyectil
-    if (proyectilActivo && itemProyectil && proyectilActivo->estaActiva()) {
-        double x = proyectilActivo->getX();
-        double y = proyectilActivo->getY();
-        itemProyectil->setPos(x - 6, y - 6);
+                double porcentaje = muros[i]->getPorcentajeVida();
+                if (porcentaje < 0.3) {
+                    QColor colorDanio = (muros[i]->getIdPropietario() == 1) ?
+                                            QColor(150, 100, 100) : QColor(255, 100, 100);
+                    itemsMuros[i]->setBrush(QBrush(colorDanio));
+                }
+            }
+        }
     }
-
-    // Actualizar texto de informacion
-    QString nombreJugador = (turnoActual == 1) ? "Jugador 1" : "Jugador 2";
-    textoTurno->setPlainText(QString("Turno: %1").arg(nombreJugador));
 }
 
 void MainWindow::limpiarProyectil()
@@ -560,179 +428,151 @@ void MainWindow::limpiarProyectil()
         delete proyectilActivo;
         proyectilActivo = nullptr;
     }
-}
 
-QColor MainWindow::obtenerColorJugador(int jugador)
-{
-    return (jugador == 1) ? QColor(255, 68, 68) : QColor(68, 138, 255);
-}
-
-// ==== SLOTS DE INTERACCION ====
-
-void MainWindow::disparar()
-{
-    if (!juegoActivo || proyectilEnMovimiento) {
-        return;
-    }
-
-    // Obtener parametros de disparo
-    double angulo = sliderAngulo->value();
-    double velocidad = sliderVelocidad->value();
-
-    // Determinar posicion inicial segun turno
-    QPointF posInicial;
-    if (turnoActual == 1) {
-        posInicial = posCanonJ1;
-    } else {
-        posInicial = posCanonJ2;
-        angulo = 180 - angulo; // Invertir angulo para jugador 2
-    }
-
-    // Crear proyectil
-    proyectilActivo = new Proyectil(
-        posInicial.x(), posInicial.y(),
-        angulo, velocidad,
-        MASA_PROYECTIL, turnoActual, GRAVEDAD
-        );
-
-    // Crear item grafico del proyectil
-    QColor colorProyectil = obtenerColorJugador(turnoActual).darker(110);
-    itemProyectil = scene->addEllipse(
-        -6, -6, 12, 12,
-        QPen(Qt::black, 2), QBrush(colorProyectil)
-        );
-    itemProyectil->setZValue(20);
-
-    // Iniciar animacion
-    proyectilEnMovimiento = true;
-    btnDisparar->setEnabled(false);
-    timer->start(16); // ~60 FPS
-
-    textoEstado->setPlainText("💥 Proyectil en vuelo...");
-}
-
-void MainWindow::actualizarSimulacion()
-{
-    if (!proyectilActivo || !proyectilActivo->estaActiva()) {
-        return;
-    }
-
-    // Actualizar fisica del proyectil
-    proyectilActivo->actualizarMovimiento(DT);
-
-    // Verificar colisiones
-    verificarColisiones();
-
-    // Actualizar visualizacion
-    actualizarVisualizacion();
-
-    // Verificar si el proyectil salio del escenario
-    double x = proyectilActivo->getX();
-    double y = proyectilActivo->getY();
-
-    if (x < -100 || x > ANCHO_ESCENARIO + 100 || y > ALTO_ESCENARIO + 100) {
-        limpiarProyectil();
-        cambiarTurno();
-    }
-}
-
-void MainWindow::resetearJuego()
-{
-    // Detener timer
-    timer->stop();
-
-    // Limpiar proyectil
-    limpiarProyectil();
-
-    // Restaurar muros
-    for (auto muro : muros) {
-        muro->restaurar();
-    }
-
-    // Restaurar visibilidad de muros
-    for (auto item : itemsMuros) {
-        item->setVisible(true);
-    }
-    for (auto texto : textosVidaMuros) {
-        texto->setVisible(true);
-    }
-
-    actualizarBarrasVida();
-
-    // Resetear estado del juego
-    turnoActual = 1;
-    juegoActivo = true;
     proyectilEnMovimiento = false;
-
-    // Resetear controles
-    sliderAngulo->setValue(45);
-    sliderVelocidad->setValue(500);
     btnDisparar->setEnabled(true);
-
-    labelTurno->setText("JUGADOR 1");
-    labelTurno->setStyleSheet(
-        "color: #FF4444; "
-        "background-color: #FFE6E6; "
-        "padding: 20px; "
-        "border-radius: 10px; "
-        "border: 3px solid #FF4444;"
-        );
-
-    textoEstado->setPlainText(" Nuevo juego - ¡Buena suerte!");
-
-    actualizarVisualizacion();
-}
-
-void MainWindow::verificarColisiones()
-{
-
 }
 
 void MainWindow::cambiarTurno()
 {
-    timer->stop();
+    turnoActual = (turnoActual == 1) ? 2 : 1;
+    actualizarVisualizacion();
+    textoEstado->setPlainText("Listo para disparar");
+    textoEstado->setDefaultTextColor(Qt::yellow);
+}
+
+void MainWindow::actualizarVisualizacion()
+{
+    QString turnoTexto = QString("Turno: Jugador %1").arg(turnoActual);
+    textoTurno->setPlainText(turnoTexto);
+    labelTurno->setText(turnoTexto);
+
+    QColor color = obtenerColorJugador(turnoActual);
+    labelTurno->setStyleSheet(QString("font-size: 18px; font-weight: bold; color: %1;")
+                                  .arg(color.name()));
+
+    actualizarAnguloCanon();
+}
+
+void MainWindow::actualizarAnguloCanon()
+{
+    double angulo = sliderAngulo->value();
+    double longitud = 45;
+
+    QPointF pos;
+    QGraphicsLineItem* tubo;
+
+    if (turnoActual == 1) {
+        pos = posCanonJ1;
+        tubo = tuboCanonJ1;
+    } else {
+        pos = posCanonJ2;
+        tubo = tuboCanonJ2;
+        angulo = 180 - angulo;
+    }
+
+    double anguloRad = angulo * M_PI / 180.0;
+    double xFin = pos.x() + longitud * cos(anguloRad);
+    double yFin = pos.y() - longitud * sin(anguloRad);
+
+    tubo->setLine(pos.x(), pos.y(), xFin, yFin);
+}
+
+void MainWindow::actualizarInfoAngulo(int valor)
+{
+    labelAngulo->setText(QString("Ángulo: %1°").arg(valor));
+    spinAngulo->setValue(valor);
+    actualizarAnguloCanon();
+}
+
+void MainWindow::actualizarInfoVelocidad(int valor)
+{
+    labelVelocidad->setText(QString("Velocidad: %1").arg(valor));
+    spinVelocidad->setValue(valor);
+}
+
+void MainWindow::resetearJuego()
+{
+    if (timer) {
+        timer->stop();
+    }
+
+    limpiarProyectil();
+
+    // Restaurar muros
+    for (size_t i = 0; i < muros.size(); i++) {
+        muros[i]->restaurar();
+        if (i < textosVidaMuros.size()) {
+            int vida = (int)muros[i]->getResistenciaMaxima();
+            textosVidaMuros[i]->setPlainText(QString::number(vida));
+            textosVidaMuros[i]->setDefaultTextColor(Qt::white);
+
+            QColor colorMuro = (muros[i]->getIdPropietario() == 1) ?
+                                   QColor(100, 149, 237) : QColor(220, 20, 60);
+            itemsMuros[i]->setBrush(QBrush(colorMuro));
+        }
+    }
+
+    turnoActual = 1;
+    juegoActivo = true;
     proyectilEnMovimiento = false;
 
-    turnoActual = (turnoActual == 1) ? 2 : 1;
-
-    // Actualizar UI
-    QColor colorTurno = obtenerColorJugador(turnoActual);
-    QString bgColor = (turnoActual == 1) ? "#FFE6E6" : "#E6F3FF";
-    QString borderColor = (turnoActual == 1) ? "#FF4444" : "#4488FF";
-
-    labelTurno->setText(QString("JUGADOR #1").arg(turnoActual));
-    labelTurno->setStyleSheet(QString(
-                                  "color: %1; "
-                                  "background-color: %2; "
-                                  "padding: 20px; "
-                                  "border-radius: 10px; "
-                                  "border: 3px solid %3;"
-                                  ).arg(colorTurno.name()).arg(bgColor).arg(borderColor));
-
+    sliderAngulo->setValue(45);
+    sliderVelocidad->setValue(400);
     btnDisparar->setEnabled(true);
-    textoEstado->setPlainText("Tu turno - ¡Ajusta y dispara!");
+
+    actualizarVisualizacion();
+    textoEstado->setPlainText("Juego reiniciado");
+    textoEstado->setDefaultTextColor(Qt::green);
 }
 
 void MainWindow::mostrarVictoria(int jugadorGanador)
 {
     timer->stop();
     juegoActivo = false;
+
+    QString mensaje = QString("¡Jugador %1 ha ganado!").arg(jugadorGanador);
+    textoEstado->setPlainText(mensaje);
+    textoEstado->setDefaultTextColor(Qt::green);
+    textoEstado->setFont(QFont("Arial", 14, QFont::Bold));
+
+    QMessageBox::information(this, "¡Victoria!",
+                             mensaje + "\n\nPresiona R para reiniciar.");
+
     btnDisparar->setEnabled(false);
+}
 
-    QMessageBox msgBox(this);
-    msgBox.setWindowTitle("¡VICTORIA!");
-    msgBox.setText(QString("¡JUGADOR #1 HA GANADO!").arg(jugadorGanador));
-    msgBox.setInformativeText("Ha impactado al rival enemigo.\n\n¿Deseas jugar otra vez?");
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    msgBox.setDefaultButton(QMessageBox::Yes);
-    msgBox.setStyleSheet(
-        "QMessageBox { background-color: #FFF8E1; }"
-        "QPushButton { min-width: 80px; min-height: 30px; font-size: 14px; }"
-        );
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (!juegoActivo && event->key() != Qt::Key_R) {
+        return;
+    }
 
-    int respuesta = msgBox.exec();
+    switch (event->key()) {
+    case Qt::Key_Up:
+        if (sliderAngulo->value() < 90) {
+            sliderAngulo->setValue(sliderAngulo->value() + 1);
+        }
+        break;
 
-    if (respuesta == QMessageBox::Yes) {
+    case Qt::Key_Down:
+        if (sliderAngulo->value() > 0) {
+            sliderAngulo->setValue(sliderAngulo->value() - 1);
+        }
+        break;
+
+    case Qt::Key_Space:
+        if (!proyectilEnMovimiento) {
+            disparar();
+        }
+        break;
+
+    case Qt::Key_R:
         resetearJuego();
+        break;
+
+    default:
+        QMainWindow::keyPressEvent(event);
+        break;
     }
 }
